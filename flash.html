@@ -3,41 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deutsch Blitzkarten</title>
+    <title>Deutsch Flashcards</title>
     <style>
-        /* --- CSS STYLES --- */
+        /* --- CSS: The Design --- */
         :root {
-            --primary: #4255ff;
-            --secondary: #3ccfcf;
+            --primary: #4255ff; /* Quizlet Blue */
+            --accent: #3ccfcf;
             --bg: #f6f7fb;
+            --white: #ffffff;
             --text: #1a1d28;
         }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
+            justify-content: center;
+            min-height: 100vh;
             margin: 0;
         }
 
-        .container {
+        .app-container {
             width: 90%;
-            max-width: 500px;
+            max-width: 600px;
             text-align: center;
         }
 
-        h1 { margin-bottom: 20px; font-weight: 800; }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            color: var(--primary);
+        }
 
-        /* Card 3D Setup */
-        .flashcard-container {
+        /* Flashcard 3D Flip Effect */
+        .flashcard-wrapper {
             perspective: 1000px;
             width: 100%;
-            height: 300px;
+            height: 350px;
             margin-bottom: 30px;
             cursor: pointer;
         }
@@ -50,10 +55,10 @@
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             transform-style: preserve-3d;
             border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
 
-        .flashcard.is-flipped {
+        .flashcard.flipped {
             transform: rotateY(180deg);
         }
 
@@ -67,44 +72,50 @@
             justify-content: center;
             align-items: center;
             border-radius: 20px;
-            padding: 20px;
+            padding: 30px;
             box-sizing: border-box;
-        }
-
-        .card-front {
-            background: white;
-            color: var(--text);
+            background: var(--white);
         }
 
         .card-back {
             background: var(--primary);
-            color: white;
+            color: var(--white);
             transform: rotateY(180deg);
         }
 
-        .word { font-size: 2.5rem; font-weight: 700; margin: 0; }
-        .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; margin-bottom: 10px; }
+        .word {
+            font-size: 2.8rem;
+            font-weight: bold;
+            margin: 0;
+        }
 
-        /* Controls */
+        .hint {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.5;
+        }
+
+        /* Navigation Controls */
         .controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 15px;
+            gap: 20px;
         }
 
         button {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 12px;
-            background: white;
-            color: var(--primary);
-            font-weight: bold;
+            padding: 12px 25px;
             font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            background: var(--white);
+            color: var(--primary);
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: all 0.2s;
+            transition: transform 0.2s, background 0.2s;
         }
 
         button:hover {
@@ -113,98 +124,92 @@
             transform: translateY(-2px);
         }
 
-        #progress {
-            font-weight: 600;
-            color: #666;
-            min-width: 60px;
+        button:active {
+            transform: translateY(0);
         }
 
-        .footer-note {
-            margin-top: 40px;
-            font-size: 0.9rem;
-            color: #888;
+        #progress-text {
+            font-weight: bold;
+            color: #666;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Lerne Deutsch</h1>
+    <div class="app-container">
+        <h1>Vokabeln</h1>
         
-        <div class="flashcard-container" onclick="flipCard()">
+        <div class="flashcard-wrapper" onclick="toggleFlip()">
             <div class="flashcard" id="card">
                 <div class="card-face card-front">
-                    <span class="label">Deutsch</span>
-                    <p class="word" id="de-word">Laden...</p>
+                    <p class="word" id="de-text">Wort</p>
+                    <span class="hint">Deutsch (Klicken zum Umdrehen)</span>
                 </div>
                 <div class="card-face card-back">
-                    <span class="label">English</span>
-                    <p class="word" id="en-word">Loading...</p>
+                    <p class="word" id="en-text">Word</p>
+                    <span class="hint">English</span>
                 </div>
             </div>
         </div>
 
         <div class="controls">
-            <button onclick="prevCard()">Zurück</button>
-            <span id="progress">1 / 5</span>
-            <button onclick="nextCard()">Weiter</button>
+            <button onclick="changeCard(-1)">Zurück</button>
+            <span id="progress-text">1 / 5</span>
+            <button onclick="changeCard(1)">Weiter</button>
         </div>
-
-        <p class="footer-note">Press <b>Space</b> to flip or <b>Arrows</b> to navigate.</p>
     </div>
 
     <script>
-        /* --- JAVASCRIPT LOGIC --- */
+        /* --- JS: The Logic --- */
         const vocabulary = [
-            { de: "Das Fernweh", en: "Wanderlust / Longing for far-off places" },
+            { de: "Das Fernweh", en: "Wanderlust" },
             { de: "Die Zeitgeist", en: "Spirit of the times" },
-            { de: "Schadenfreude", en: "Joy at someone else's misfortune" },
-            { de: "Kummerspeck", en: "Weight gain due to emotional eating" },
-            { de: "Doch", en: "On the contrary / Yes (to a negative question)" },
-            { de: "Verschlimmbessern", en: "To make something worse while trying to improve it" }
+            { de: "Gemütlichkeit", en: "Coziness / Comfort" },
+            { de: "Vielleicht", en: "Maybe" },
+            { de: "Kummerspeck", en: "Emotional overeating weight" }
         ];
 
         let currentIndex = 0;
-        const cardElement = document.getElementById('card');
-        const deDisplay = document.getElementById('de-word');
-        const enDisplay = document.getElementById('en-word');
-        const progressDisplay = document.getElementById('progress');
+        const card = document.getElementById('card');
+        const deDisplay = document.getElementById('de-text');
+        const enDisplay = document.getElementById('en-text');
+        const progress = document.getElementById('progress-text');
 
-        function updateDisplay() {
-            // Unflip before changing text
-            cardElement.classList.remove('is-flipped');
+        function updateUI() {
+            // Un-flip the card before changing words
+            card.classList.remove('flipped');
             
-            // Wait for flip back animation before swapping text
+            // Short delay for the text update so it's hidden during the "reset"
             setTimeout(() => {
                 deDisplay.textContent = vocabulary[currentIndex].de;
                 enDisplay.textContent = vocabulary[currentIndex].en;
-                progressDisplay.textContent = `${currentIndex + 1} / ${vocabulary.length}`;
-            }, 200);
+                progress.textContent = `${currentIndex + 1} / ${vocabulary.length}`;
+            }, 150);
         }
 
-        function flipCard() {
-            cardElement.classList.toggle('is-flipped');
+        function toggleFlip() {
+            card.classList.toggle('flipped');
         }
 
-        function nextCard() {
-            currentIndex = (currentIndex + 1) % vocabulary.length;
-            updateDisplay();
+        function changeCard(direction) {
+            currentIndex += direction;
+            
+            // Loop back logic
+            if (currentIndex >= vocabulary.length) currentIndex = 0;
+            if (currentIndex < 0) currentIndex = vocabulary.length - 1;
+            
+            updateUI();
         }
 
-        function prevCard() {
-            currentIndex = (currentIndex - 1 + vocabulary.length) % vocabulary.length;
-            updateDisplay();
-        }
-
-        // Keyboard support
+        // Add keyboard support (Space to flip, Arrows to move)
         document.addEventListener('keydown', (e) => {
-            if (e.code === "Space") flipCard();
-            if (e.code === "ArrowRight") nextCard();
-            if (e.code === "ArrowLeft") prevCard();
+            if (e.code === "Space") toggleFlip();
+            if (e.code === "ArrowRight") changeCard(1);
+            if (e.code === "ArrowLeft") changeCard(-1);
         });
 
-        // Init
-        updateDisplay();
+        // Load first word
+        updateUI();
     </script>
 </body>
 </html>
